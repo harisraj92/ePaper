@@ -1,0 +1,32 @@
+/src
+  /components       // Common reusable components
+    Header.js
+    Footer.js
+    Sidebar.js
+    Layout.js       // Wrapping layout for the app (includes header, footer, sidebar, and content)
+  
+  /pages            // Pages for different routes in your application
+    /Home           // Group each page-related component in their own folders
+      HomePage.js
+      HomeContent.js
+    /About
+      AboutPage.js
+    /Editor
+      EditorPage.js
+      EditorToolbar.js
+      EditorContent.js
+    /Login          // New folder for Login Page
+      LoginPage.js
+    /NotFound
+      NotFoundPage.js
+  
+  /routes           // Route configuration
+    routes.js       // Central routing config
+  
+  /assets           // All static files (e.g., images, icons, fonts)
+    /images
+      newspaper-bg.png
+
+  App.js            // Entry point for the app
+  index.js          // ReactDOM render
+  App.css           // Global CSS or Tailwind entry
