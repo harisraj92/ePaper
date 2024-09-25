@@ -2,6 +2,7 @@ import React, { useContext } from "react"
 import { CanvasContext } from "./CanvasContext"
 import "@flaticon/flaticon-uicons/css/all/all.css"
 
+
 export const sizeList = [
     "8px",
     "9px",
@@ -15,6 +16,7 @@ export const sizeList = [
     "72px",
     "100px"
 ]
+
 
 export const fontList = [
     "Arial",
@@ -59,13 +61,13 @@ export const formats = [
     "link",
     "image",
     "color",
-    "code-block",
-    "layout"
+    "code-block"
 ];
 
 
 
-export default function Toolbar({ isEditEnable }) {
+
+export default function Toolbar({ isEditEnable, saveCanvasData }) {
     const { actions } = useContext(CanvasContext)
     const addElement = type => {
         actions?.addElement(type)
@@ -78,7 +80,7 @@ export default function Toolbar({ isEditEnable }) {
             <div>
                 <div className="flex flex-wrap">
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="/"
                                 title="Home"
@@ -93,7 +95,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="/"
                                 title="Add Page"
@@ -108,22 +110,19 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
-                            <a
-                                href="/"
+                        <div className="bg-gray-500 p-2 rounded-md">
+                            <button
+                                onClick={saveCanvasData}
                                 title="Save Page"
                                 style={{ textDecoration: "none", color: "inherit" }}
                             >
-                                <i
-                                    class="fi fi-sr-disk"
-                                    title="Save Page"
-                                    style={{ fontSize: "24px" }}
-                                ></i>
-                            </a>
+                                <i className="fi fi-sr-disk" title="Save Page" style={{ fontSize: "24px" }}></i>
+                            </button>
+
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="/"
                                 title="Delete"
@@ -138,7 +137,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="/"
                                 title="export"
@@ -153,7 +152,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="w-96 p-2 justify-items-stretch ">
-                        <div className="bg-orange-600 p-2 text-center rounded-md">
+                        <div className="bg-gray-600 p-2 text-center rounded-md">
                             <a
                                 href="/"
                                 title="Delete"
@@ -164,7 +163,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="#"
                                 title="text"
@@ -180,7 +179,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="#"
                                 title="text"
@@ -195,8 +194,9 @@ export default function Toolbar({ isEditEnable }) {
                             </a>
                         </div>
                     </div>
+
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="#"
                                 title="add image"
@@ -212,7 +212,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="/"
                                 title="preview"
@@ -227,7 +227,7 @@ export default function Toolbar({ isEditEnable }) {
                         </div>
                     </div>
                     <div className="p-2">
-                        <div className="bg-orange-800 p-2 rounded-md">
+                        <div className="bg-gray-500 p-2 rounded-md">
                             <a
                                 href="/"
                                 title="frame"
@@ -274,7 +274,7 @@ export default function Toolbar({ isEditEnable }) {
                         <button className="ql-list" value="bullet" />
                         <button className="ql-indent" value="-1" />
                         <button className="ql-indent" value="+1" />
-                        <button className="ql-layout" />
+
                     </div>
                 )}
             </div>

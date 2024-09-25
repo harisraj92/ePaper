@@ -668,3 +668,30 @@ a {
 .ql-editor h1 {
   text-align: center;
 }
+
+.image-upload {
+  width: 150px;
+  height: 150px;
+  border: 2px solid #ccc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer !important;
+  position: relative;
+}
+
+.image-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #888;
+}
+
+input[type="file"] {
+  display: none;
+}

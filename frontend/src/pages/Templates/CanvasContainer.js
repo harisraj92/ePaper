@@ -1,10 +1,8 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import CanvasComponent from './CanvasComponent';
 import { CanvasContext } from "./CanvasContext";
-import Toolbar from "./Toolbar"
+import Toolbar from "./Toolbar";
 import Pagination from "./Pagination";
-
-
 
 const getInitialData = (data, type = "TEXT") => {
     return {
@@ -22,7 +20,6 @@ const getInitialData = (data, type = "TEXT") => {
     };
 };
 
-
 const getInitialHeading = (data, type = "HEADING") => {
     return {
         type: type,
@@ -35,60 +32,120 @@ const getInitialHeading = (data, type = "HEADING") => {
             width: "150",
             height: type === "HEADING" ? "50" : "500"
         },
-        content: type === "HEADING" ? "<h1>Text Heading Here</h1> <h2>Sub Heading Here </h2><p>Sample text</p>" : ""
+        content: type === "HEADING" ? "<h1>Text Heading Here</h1> <h2>Sub Heading Here </h2> <p>Sample text</p>" : ""
     };
 };
 
 const CanvasContainer = () => {
-    const [canvasData, setCanvasData] = useState([]);
-    const [activeSelection, setActiveSelection] = useState(new Set());
+    const [canvasData, setCanvasData] = useState([]); // Canvas data state
+    const [activeSelection, setActiveSelection] = useState(new Set()); // Active selection
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 }); // Default canvas size
-    const [enableQuillToolbar, setEnableQuillToolbar] = useState(false)
-
+    const [enableQuillToolbar, setEnableQuillToolbar] = useState(false);
     const [customWidth, setCustomWidth] = useState(800);
     const [customHeight, setCustomHeight] = useState(600);
     const [isCustom, setIsCustom] = useState(false);
-    const [zoomLevel, setZoomLevel] = useState(1); // Initial zoom level is 1 (100%)
+    const [zoomLevel, setZoomLevel] = useState(1); // Initial zoom level
     const [columns, setColumns] = useState(8); // Default column count
 
     const containerRef = useRef(null);
     const isSelectAll = useRef(false);
 
-    // Predefined newspaper sizes
+    // Fetch saved canvas data and size from backend when component mounts
+    const fetchCanvasData = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/api/editor/last');
+            if (!response.ok) {
+                throw new Error('Failed to fetch canvas data');
+            }
+
+            const data = await response.json();
+            const { content, width, height } = data;
+
+            // Set the canvas content and size from the saved data
+            setCanvasData(JSON.parse(content));
+            setCanvasSize({ width, height });
+        } catch (error) {
+            console.error('Error fetching canvas data:', error);
+            alert('Error loading canvas data. Please try again later.');
+        }
+    };
+
+    // Fetch canvas data and size on mount
+    useEffect(() => {
+        fetchCanvasData();
+    }, []);
+
+    // Save canvas data function including size
+    const saveCanvasData = async (canvasId = null) => {
+        try {
+            const id = canvasId || Date.now(); // Use Date.now() to generate a unique ID if canvasId is not provided
+            const content = JSON.stringify(canvasData); // Convert canvasData to JSON string
+            const width = canvasSize.width;  // Get current canvas width
+            const height = canvasSize.height; // Get current canvas height
+
+            const response = await fetch('http://localhost:5000/api/editor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, content, width, height }) // Send the canvas data and screen size
+            });
+
+            if (!response.ok) {
+                throw new Error('Error saving canvas data');
+            }
+
+            console.log('Canvas saved with id:', id);
+        } catch (error) {
+            console.error('Error saving canvas data:', error);
+        }
+    };
+
+    // Predefined newspaper sizes with save
     const handleSizeChange = (e) => {
         const selectedSize = e.target.value;
         setIsCustom(false); // Reset custom size mode
 
+        let newSize = { width: 800, height: 600 }; // Default size
+
         switch (selectedSize) {
             case 'Broadsheet':
-                setCanvasSize({ width: 2362, height: 2953 }); // 600 mm x 750 mm
+                newSize = { width: 2362, height: 2953 };
                 break;
             case 'Tabloid':
-                setCanvasSize({ width: 1102, height: 1693 }); // 280 mm x 430 mm
+                newSize = { width: 1102, height: 1693 };
                 break;
             case 'Berliner':
-                setCanvasSize({ width: 1240, height: 1850 }); // 315 mm x 470 mm
+                newSize = { width: 1240, height: 1850 };
                 break;
             case 'Compact':
-                setCanvasSize({ width: 1170, height: 1654 }); // 297 mm x 420 mm
+                newSize = { width: 1170, height: 1654 };
                 break;
             case 'custom':
-                setIsCustom(true); // Enable custom size input
+                setIsCustom(true);
                 break;
             default:
-                setCanvasSize({ width: 800, height: 600 }); // Default size
+                newSize = { width: 800, height: 600 };
+        }
+
+        if (selectedSize !== 'custom') {
+            setCanvasSize(newSize);
+            saveCanvasData(); // Automatically save the new canvas size when changed
         }
     };
 
-    const updateCanvasData = data => {
-        const currentDataIndex =
-            canvasData.findIndex(canvas => canvas.id === data.id) ?? -1;
-        const updatedData = { ...canvasData?.[currentDataIndex], ...data };
-        canvasData.splice(currentDataIndex, 1, updatedData);
-        setCanvasData([...(canvasData || [])]);
+    const handleCustomResize = () => {
+        setCanvasSize({ width: customWidth, height: customHeight });
+        saveCanvasData(); // Save after custom size change
     };
 
-    const addElement = type => {
+    const updateCanvasData = (data) => {
+        const currentDataIndex = canvasData.findIndex((canvas) => canvas.id === data.id) ?? -1;
+        const updatedData = { ...canvasData?.[currentDataIndex], ...data };
+        const newCanvasData = [...canvasData];
+        newCanvasData.splice(currentDataIndex, 1, updatedData);
+        setCanvasData(newCanvasData); // Update state with modified canvas data
+    };
+
+    const addElement = (type) => {
         const defaultData = getInitialData(canvasData, type);
         setCanvasData([...canvasData, { ...defaultData, type: type ?? "TEXT" }]);
         activeSelection.clear();
@@ -96,7 +153,7 @@ const CanvasContainer = () => {
         setActiveSelection(new Set(activeSelection));
     };
 
-    const addHeading = type => {
+    const addHeading = (type) => {
         const defaultHeadingData = getInitialHeading(canvasData, type);
         setCanvasData([...canvasData, { ...defaultHeadingData, type: type ?? "HEADING" }]);
         activeSelection.clear();
@@ -104,11 +161,9 @@ const CanvasContainer = () => {
         setActiveSelection(new Set(activeSelection));
     };
 
-
-
     const deleteElement = useCallback(() => {
         setCanvasData([
-            ...canvasData.filter(data => {
+            ...canvasData.filter((data) => {
                 if (data.id && activeSelection.has(data.id)) {
                     activeSelection.delete(data.id);
                     return false;
@@ -121,38 +176,23 @@ const CanvasContainer = () => {
 
     const selectAllElement = useCallback(() => {
         isSelectAll.current = true;
-        canvasData.map(data => activeSelection.add(data.id || ""));
+        canvasData.map((data) => activeSelection.add(data.id || ""));
         setActiveSelection(new Set(activeSelection));
     }, [activeSelection, canvasData]);
 
-    const handleCustomSizeChange = (e) => {
-        const { name, value } = e.target;
-        setCustomWidth((prevState) => ({
-            ...prevState,
-            [name]: Number(value)
-        }));
-    };
-
-    const handleCustomResize = () => {
-        setCanvasSize({ width: customWidth, height: customHeight });
-    };
-
-    // Zoom In and Zoom Out functions
     const handleZoomIn = () => {
-        setZoomLevel(prevZoom => Math.min(prevZoom + 0.1, 2)); // Max zoom level of 2 (200%)
+        setZoomLevel((prevZoom) => Math.min(prevZoom + 0.1, 2)); // Max zoom level of 2 (200%)
     };
 
     const handleZoomOut = () => {
-        setZoomLevel(prevZoom => Math.max(prevZoom - 0.1, 0.5)); // Min zoom level of 0.5 (50%)
+        setZoomLevel((prevZoom) => Math.max(prevZoom - 0.1, 0.5)); // Min zoom level of 0.5 (50%)
     };
 
-    // Function to render the grid layout with only columns
+    // Render grid layout with only columns
     const renderGrid = () => {
         const columnWidth = canvasSize.width / columns;
-
         return (
             <>
-                {/* Vertical Ruler (Columns) */}
                 {Array.from({ length: columns }, (_, index) => (
                     <div
                         key={`column-${index}`}
@@ -176,7 +216,8 @@ const CanvasContainer = () => {
             updateCanvasData,
             addElement,
             addHeading,
-            setEnableQuillToolbar
+            saveCanvasData,
+            setEnableQuillToolbar, // Add this to context actions
         },
         state: {
             canvasData,
@@ -185,7 +226,7 @@ const CanvasContainer = () => {
     };
 
     const handleKeyDown = useCallback(
-        event => {
+        (event) => {
             if (event.key === "Delete") {
                 deleteElement();
             } else if (["a", "A"].includes(event.key) && event.ctrlKey) {
@@ -201,16 +242,18 @@ const CanvasContainer = () => {
         setActiveSelection(new Set());
     };
 
-    const handleMouseDown = useCallback(event => {
-        if (!isSelectAll.current) {
-            return;
-        }
+    const handleMouseDown = useCallback(
+        (event) => {
+            if (!isSelectAll.current) {
+                return;
+            }
+            outSideClickHandler();
+            isSelectAll.current = false;
+        },
+        []
+    );
 
-        outSideClickHandler();
-        isSelectAll.current = false;
-    }, []);
-
-    React.useEffect(() => {
+    useEffect(() => {
         document.addEventListener("keydown", handleKeyDown);
         document.addEventListener("mousedown", handleMouseDown);
         return () => {
@@ -222,11 +265,8 @@ const CanvasContainer = () => {
     return (
         <div ref={containerRef}>
             <CanvasContext.Provider value={context}>
-
-
                 {/* Custom Size Inputs */}
                 <div className="flex">
-                    {/* Select dropdown for newspaper sizes */}
                     <div className="p-4">
                         <label className="mr-2">Select Paper Size:</label>
                         <select onChange={handleSizeChange} className="border p-2">
@@ -249,7 +289,6 @@ const CanvasContainer = () => {
                                 className="border p-2 mr-4"
                                 min="100"
                             />
-
                             <label className="mr-2">Custom Height (px):</label>
                             <input
                                 type="number"
@@ -258,7 +297,6 @@ const CanvasContainer = () => {
                                 className="border p-2 mr-4"
                                 min="100"
                             />
-
                             <button
                                 onClick={handleCustomResize}
                                 className="bg-blue-500 text-white p-2 rounded"
@@ -283,39 +321,37 @@ const CanvasContainer = () => {
                             Zoom In (+)
                         </button>
                     </div>
-
                 </div>
-                <Toolbar isEditEnable={enableQuillToolbar} />
+
+                <Toolbar isEditEnable={enableQuillToolbar} saveCanvasData={() => saveCanvasData()} />
                 {/* Canvas Container with Scrollable Feature */}
                 <div
                     className="canvas-parent-container"
                     style={{
-                        width: '900px',  // Fixed width
-                        height: '800px', // Fixed height
-                        overflow: 'auto', // Scrollable when content exceeds container size
+                        width: '900px',
+                        height: '800px',
+                        overflow: 'auto',
                         border: '2px solid #ddd',
                         marginTop: '20px',
-                        position: 'relative' // For absolute positioning of grid
+                        position: 'relative'
                     }}
                 >
-                    {/* Canvas Container */}
                     <div
                         className="canvas-container m-8 p-8"
                         style={{
                             width: `${canvasSize.width}px`,
                             height: `${canvasSize.height}px`,
                             border: "1px solid black",
-                            position: 'relative',  // Ensures proper positioning inside the parent container
-                            transform: `scale(${zoomLevel})`, // Apply zoom level
-                            transformOrigin: 'top left' // Keep the zoom origin at the top-left
+                            position: 'relative',
+                            transform: `scale(${zoomLevel})`,
+                            transformOrigin: 'top left'
                         }}
                     >
-                        {/* Render the vertical column grid */}
                         {renderGrid()}
 
-                        {canvasData.map(canvas => {
-                            return <CanvasComponent key={canvas.id} {...canvas} />;
-                        })}
+                        {canvasData.map((canvas) => (
+                            <CanvasComponent key={canvas.id} {...canvas} />
+                        ))}
                     </div>
 
                     <div className="flex">
