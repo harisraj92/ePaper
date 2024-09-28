@@ -4,6 +4,7 @@ import { CanvasContext } from "./CanvasContext";
 import Toolbar from "./Toolbar";
 import Pagination from "./Pagination";
 
+// Helper to get initial data for new canvas elements
 const getInitialData = (data, type = "TEXT") => {
     return {
         type: type,
@@ -20,6 +21,7 @@ const getInitialData = (data, type = "TEXT") => {
     };
 };
 
+// Helper to get initial heading data
 const getInitialHeading = (data, type = "HEADING") => {
     return {
         type: type,
@@ -36,10 +38,10 @@ const getInitialHeading = (data, type = "HEADING") => {
     };
 };
 
-const CanvasContainer = () => {
-    const [canvasData, setCanvasData] = useState([]); // Canvas data state
-    const [activeSelection, setActiveSelection] = useState(new Set()); // Active selection
-    const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 }); // Default canvas size
+const CanvasContainer = ({ newsid, pageid, onEdit }) => {
+    const [canvasData, setCanvasData] = useState([]);
+    const [activeSelection, setActiveSelection] = useState(new Set());
+    const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
     const [enableQuillToolbar, setEnableQuillToolbar] = useState(false);
     const [customWidth, setCustomWidth] = useState(800);
     const [customHeight, setCustomHeight] = useState(600);
@@ -50,61 +52,97 @@ const CanvasContainer = () => {
     const containerRef = useRef(null);
     const isSelectAll = useRef(false);
 
-    // Fetch saved canvas data and size from backend when component mounts
-    const fetchCanvasData = async () => {
+    // Log the newsid and pageid when component mounts
+    useEffect(() => {
+        console.log('News ID:', newsid);
+        console.log('Page ID:', pageid);
+    }, [newsid, pageid]);
+
+    // Fetch saved canvas data and size from the backend when the component mounts
+    const fetchCanvasData = async (newsid, pageid) => {
+        if (!newsid || !pageid) {
+            console.error("Missing newsid or pageid. Cannot fetch data.");
+            return;
+        }
+
         try {
-            const response = await fetch('http://localhost:5000/api/editor/last');
+            console.log('Fetching canvas data...');
+            const response = await fetch(`http://localhost:5000/api/eNewsPage/editnews?newsid=${newsid}&pageid=${pageid}`);
+
             if (!response.ok) {
+                console.error('Failed to fetch canvas data. Status:', response.status);
                 throw new Error('Failed to fetch canvas data');
             }
 
             const data = await response.json();
-            const { content, width, height } = data;
+            console.log('Fetched data:', data);
 
-            // Set the canvas content and size from the saved data
-            setCanvasData(JSON.parse(content));
-            setCanvasSize({ width, height });
+            let parsedCanvasData = data.pagecontent;
+
+            // Parse twice if necessary to handle double-encoded JSON
+            if (typeof parsedCanvasData === 'string') {
+                parsedCanvasData = JSON.parse(parsedCanvasData);
+
+                if (typeof parsedCanvasData === 'string') {
+                    parsedCanvasData = JSON.parse(parsedCanvasData);
+                }
+            }
+
+            setCanvasData(Array.isArray(parsedCanvasData.content) ? parsedCanvasData.content : []);
+            setCanvasSize({ width: parsedCanvasData.width, height: parsedCanvasData.height });
         } catch (error) {
             console.error('Error fetching canvas data:', error);
-            alert('Error loading canvas data. Please try again later.');
         }
     };
 
-    // Fetch canvas data and size on mount
     useEffect(() => {
-        fetchCanvasData();
-    }, []);
+        if (newsid && pageid) {
+            fetchCanvasData(newsid, pageid);  // Pass the arguments to the fetch function
+        }
+    }, [newsid, pageid]);
 
-    // Save canvas data function including size
-    const saveCanvasData = async (canvasId = null) => {
+    const saveCanvasData = async (newsid, pageid) => {
+        console.log('Saving canvas data...', { newsid, pageid }); // Log for debugging
+
+        if (!newsid || !pageid) {
+            alert("Missing newsid or pageid. Cannot save.");
+            return;
+        }
+
         try {
-            const id = canvasId || Date.now(); // Use Date.now() to generate a unique ID if canvasId is not provided
-            const content = JSON.stringify(canvasData); // Convert canvasData to JSON string
-            const width = canvasSize.width;  // Get current canvas width
-            const height = canvasSize.height; // Get current canvas height
+            const content = JSON.stringify({
+                content: canvasData,
+                width: canvasSize.width,
+                height: canvasSize.height
+            });
 
-            const response = await fetch('http://localhost:5000/api/editor', {
+            const response = await fetch('http://localhost:5000/api/eNewsPage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, content, width, height }) // Send the canvas data and screen size
+                body: JSON.stringify({
+                    newsid,
+                    pageid,
+                    pagecontent: content
+                })
             });
 
             if (!response.ok) {
-                throw new Error('Error saving canvas data');
+                const errorData = await response.json();
+                throw new Error(`Error saving canvas data: ${errorData.error}`);
             }
 
-            console.log('Canvas saved with id:', id);
+            const result = await response.json();
+            console.log('Canvas saved successfully with newsid:', result.newsid, 'and pageid:', result.pageid);
         } catch (error) {
-            console.error('Error saving canvas data:', error);
+            console.error('Error saving canvas data:', error.message);
         }
     };
 
-    // Predefined newspaper sizes with save
     const handleSizeChange = (e) => {
         const selectedSize = e.target.value;
-        setIsCustom(false); // Reset custom size mode
+        setIsCustom(false);
 
-        let newSize = { width: 800, height: 600 }; // Default size
+        let newSize = { width: 800, height: 600 };
 
         switch (selectedSize) {
             case 'Broadsheet':
@@ -134,15 +172,18 @@ const CanvasContainer = () => {
 
     const handleCustomResize = () => {
         setCanvasSize({ width: customWidth, height: customHeight });
-        saveCanvasData(); // Save after custom size change
+        saveCanvasData();
     };
 
     const updateCanvasData = (data) => {
-        const currentDataIndex = canvasData.findIndex((canvas) => canvas.id === data.id) ?? -1;
-        const updatedData = { ...canvasData?.[currentDataIndex], ...data };
+        const currentDataIndex = canvasData.findIndex((canvas) => canvas.id === data.id);
+        if (currentDataIndex === -1) {
+            return; // No matching element found, exit the function
+        }
+        const updatedData = { ...canvasData[currentDataIndex], ...data };
         const newCanvasData = [...canvasData];
         newCanvasData.splice(currentDataIndex, 1, updatedData);
-        setCanvasData(newCanvasData); // Update state with modified canvas data
+        setCanvasData(newCanvasData);
     };
 
     const addElement = (type) => {
@@ -162,33 +203,23 @@ const CanvasContainer = () => {
     };
 
     const deleteElement = useCallback(() => {
-        setCanvasData([
-            ...canvasData.filter((data) => {
-                if (data.id && activeSelection.has(data.id)) {
-                    activeSelection.delete(data.id);
-                    return false;
-                }
-                return true;
-            })
-        ]);
-        setActiveSelection(new Set(activeSelection));
+        setCanvasData(canvasData.filter(data => !activeSelection.has(data.id)));
+        setActiveSelection(new Set());  // Clear active selection after deletion
     }, [activeSelection, canvasData]);
 
     const selectAllElement = useCallback(() => {
-        isSelectAll.current = true;
-        canvasData.map((data) => activeSelection.add(data.id || ""));
+        canvasData.forEach(data => activeSelection.add(data.id));
         setActiveSelection(new Set(activeSelection));
     }, [activeSelection, canvasData]);
 
     const handleZoomIn = () => {
-        setZoomLevel((prevZoom) => Math.min(prevZoom + 0.1, 2)); // Max zoom level of 2 (200%)
+        setZoomLevel((prevZoom) => Math.min(prevZoom + 0.1, 2));
     };
 
     const handleZoomOut = () => {
-        setZoomLevel((prevZoom) => Math.max(prevZoom - 0.1, 0.5)); // Min zoom level of 0.5 (50%)
+        setZoomLevel((prevZoom) => Math.max(prevZoom - 0.1, 0.5));
     };
 
-    // Render grid layout with only columns
     const renderGrid = () => {
         const columnWidth = canvasSize.width / columns;
         return (
@@ -217,7 +248,7 @@ const CanvasContainer = () => {
             addElement,
             addHeading,
             saveCanvasData,
-            setEnableQuillToolbar, // Add this to context actions
+            setEnableQuillToolbar,
         },
         state: {
             canvasData,
@@ -323,7 +354,8 @@ const CanvasContainer = () => {
                     </div>
                 </div>
 
-                <Toolbar isEditEnable={enableQuillToolbar} saveCanvasData={() => saveCanvasData()} />
+                <Toolbar isEditEnable={enableQuillToolbar} saveCanvasData={() => saveCanvasData(newsid, pageid)} />
+
                 {/* Canvas Container with Scrollable Feature */}
                 <div
                     className="canvas-parent-container"

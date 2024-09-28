@@ -11,15 +11,20 @@ const routes = [
         element: HomePage,
         exact: true,
     },
-
     {
-        path: '/newspapereditor',
+        path: '/newspapereditor/',
+        element: NewspaperEditor,
+    },
+    {
+        path: '/newspapereditor/:newsid/:pageid',
         element: NewspaperEditor,
     },
     {
         path: '/login',
         element: LoginPage,
     },
+
+
 
 
 

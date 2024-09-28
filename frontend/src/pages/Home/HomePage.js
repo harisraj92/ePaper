@@ -1,43 +1,68 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate from React Router
-import EpaperCard from './EpaperCard';  // Import the EpaperCard component
-import NewEpaperButton from './NewEpaperButton';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import EpaperList from '../EpaperCard/EpaperList';
+import AddNewEpaper from '../AddNewEpaper/AddNewEpaper';
+import NewEpaperModal from '../AddNewEpaper/NewEpaperModal';
 
 const Home = () => {
+    const [isModalOpen, setModalOpen] = useState(false);
     const navigate = useNavigate();  // Initialize the navigation hook
 
+    // Function to open the modal
     const handleNewEpaperClick = () => {
-        navigate('/NewspaperEditor');  // Navigate to DesignArea when clicked
+        setModalOpen(true);
     };
 
-    const handleEdit = () => {
-        alert('Edit button clicked!');
+    // Function to handle saving new ePaper
+    const handleSaveNewEpaper = async (data) => {
+        try {
+            const response = await fetch('http://localhost:5000/api/eNewsPage/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    newstitle: data.newstitle,
+                    pagecontent: null, // Initially null
+                    created_at: new Date().toISOString(), // Current timestamp
+                    updated_at: null // Initially null
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save the new ePaper');
+            }
+
+            const result = await response.json();
+            console.log('New ePaper saved with ID:', result.newsid);
+
+            // Navigate to the NewspaperEditor (CanvasContainer) with newsid and pageid
+            navigate(`/newspapereditor?newsid=${result.newsid}&pageid=1`);
+        } catch (error) {
+            console.error('Error saving new ePaper:', error);
+        }
     };
 
-    const handleDelete = () => {
-        alert('Delete button clicked!');
+    // Function to close the modal
+    const handleCloseModal = () => {
+        setModalOpen(false);
     };
 
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-4xl font-bold">My Epapers</h1>
-                {/* Trigger New ePaper layout when clicked */}
                 <button onClick={handleNewEpaperClick}>
-                    <NewEpaperButton />
+                    <AddNewEpaper />
                 </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
-                {/* Example ePaper card */}
-                <EpaperCard
-                    title="Epaper"
-                    createdDate="2024-09-15"
-                    pages={1}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                />
-            </div>
+            {/* Render the modal for creating a new ePaper */}
+            <NewEpaperModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                onSave={handleSaveNewEpaper}
+            />
+
+            <EpaperList />
         </div>
     );
 };
