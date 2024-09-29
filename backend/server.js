@@ -2,11 +2,16 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json({ limit: '500mb' }));
-app.use(bodyParser.urlencoded({ limit: '500mb', extended: true }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+
 
 // Create a connection pool
 const pool = mysql.createPool({
@@ -18,6 +23,23 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
+
+
+// Define the storage location and filename for multer
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadPath = path.join(__dirname, 'src', 'assets', 'images');
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true }); // Create folder if it doesn't exist
+        }
+        cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ storage });
 
 // Helper function to query the database
 const queryDB = (query, values, callback) => {
@@ -80,39 +102,51 @@ app.post('/api/eNewsPage', (req, res) => {
 app.post('/api/eNewsPage/new', (req, res) => {
     const { newstitle, pagecontent } = req.body;
 
-    // Generate random newsid
-    const randomNewsId = Math.floor(1000 + Math.random() * 9000); // Generates a random number between 1000 and 9999
+    // Step 1: Get the maximum newsid in the database
+    const getMaxNewsIdQuery = 'SELECT MAX(newsid) as maxNewsId FROM eNewsPage';
 
-    // Check if pages exist for the generated newsid
-    const getMaxPageIdQuery = `SELECT MAX(pageid) as maxPageId FROM eNewsPage WHERE newsid = ?`;
-
-    queryDB(getMaxPageIdQuery, [randomNewsId], (err, result) => {
+    queryDB(getMaxNewsIdQuery, [], (err, result) => {
         if (err) {
-            console.error('Error fetching max pageid:', err);
+            console.error('Error fetching max newsid:', err);
             return res.status(500).json({ error: 'Database error' });
         }
 
-        // Determine the next pageid
-        let pageid = 1;  // Default to 1 if no pages exist
-        if (result && result[0] && result[0].maxPageId !== null) {
-            pageid = result[0].maxPageId + 1;  // Increment pageid if it exists
+        let newsid = 1;  // Default to 1 if no records exist
+        if (result && result[0] && result[0].maxNewsId !== null) {
+            newsid = result[0].maxNewsId + 1;  // Increment newsid if it exists
         }
 
-        // Now insert the new record with the generated newsid and calculated pageid
-        const insertQuery = `INSERT INTO eNewsPage (newsid, pageid, pagecontent, newstitle) VALUES (?, ?, ?, ?)`;
+        // Step 2: Check if pages exist for this newsid and determine the next pageid
+        const getMaxPageIdQuery = 'SELECT MAX(pageid) as maxPageId FROM eNewsPage WHERE newsid = ?';
 
-        const values = [randomNewsId, pageid, pagecontent || null, newstitle || null];
-
-        queryDB(insertQuery, values, (err, result) => {
+        queryDB(getMaxPageIdQuery, [newsid], (err, result) => {
             if (err) {
-                console.error('Error saving page data:', err);
+                console.error('Error fetching max pageid:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
 
-            res.status(200).json({ message: 'Page saved successfully', newsid: randomNewsId, pageid });
+            let pageid = 1;  // Default to 1 if no pages exist
+            if (result && result[0] && result[0].maxPageId !== null) {
+                pageid = result[0].maxPageId + 1;  // Increment pageid if it exists
+            }
+
+            // Step 3: Insert the new record with the calculated newsid and pageid
+            const insertQuery = 'INSERT INTO eNewsPage (newsid, pageid, pagecontent, newstitle) VALUES (?, ?, ?, ?)';
+
+            const values = [newsid, pageid, pagecontent || null, newstitle || 'Untitled ePage'];
+
+            queryDB(insertQuery, values, (err, result) => {
+                if (err) {
+                    console.error('Error saving page data:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+
+                res.status(200).json({ message: 'Page saved successfully', newsid, pageid });
+            });
         });
     });
 });
+
 
 
 
@@ -158,25 +192,123 @@ app.get('/api/eNewsPage/editnews', (req, res) => {
 
 
 app.get('/api/eNewsPage', (req, res) => {
-    // Query to fetch newstitle and updated_at based on fixed newsid and pageid
-    const query = `SELECT newstitle, updated_at,1 as pages, pageid, newsid 
-    FROM eNewsPage`;
+    const query = `SELECT newstitle, updated_at,1 as pages, pageid, newsid FROM eNewsPage`;
 
     queryDB(query, (err, results) => {
         if (err) {
             console.error('Database query error:', err);
-            res.status(500).json({ error: 'Failed to fetch data from the database' });
-            return;
+            return res.status(500).json({ error: 'Failed to fetch data from the database' });
+        }
+
+        //console.log("Results from the database:", results);
+
+        // Ensure you are returning valid JSON
+        if (!results || results.length === 0) {
+            return res.status(404).json({ error: 'No data found' });
         }
 
         // Send the result as a JSON response
-        res.json(results);
+        res.status(200).json(results);  // Make sure you send results as valid JSON
     });
 });
+
+
+
+
+//-----------------------------------------Upload image ----------------------
+app.post('/api/uploadImage', upload.single('file'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // Create the path for the uploaded image
+        const imagePath = `/assets/images/${req.file.filename}`;
+
+
+
+        // Send back the image URL in JSON format
+        res.status(200).json({ imagePath });
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        res.status(500).json({ error: 'Failed to upload image' });
+    }
+});
+
+// Serve the uploaded images as static files
+app.use('/assets/images', express.static(path.join(__dirname, 'src', 'assets', 'images')));
+//---------------------------------------------
+
+// API endpoint to get the newstitle based on newsid
+app.get('/api/eNewspage/:newsid', (req, res) => {
+    const { newsid } = req.params;
+    const query = 'SELECT newstitle FROM eNewsPage WHERE newsid = ?';
+
+    queryDB(query, [newsid], (err, results) => {
+        if (err) {
+            return res.status(500).send('Database error');
+        }
+        if (results.length > 0) {
+            res.json(results[0]); // Return the first result
+        } else {
+            res.status(404).send('No title found');
+        }
+    });
+});
+
+app.put('/api/eNewspage/update/:newsid', (req, res) => {
+    const { newsid } = req.params;
+    const { newstitle } = req.body;
+
+    if (!newstitle) {
+        return res.status(400).json({ error: 'New title is required' });
+    }
+
+    const query = 'UPDATE eNewsPage SET newstitle = ? WHERE newsid = ?';
+
+    queryDB(query, [newstitle, newsid], (err, result) => {
+        if (err) {
+            console.error('Error updating title:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+
+        res.status(200).json({ message: 'Title updated successfully' });
+    });
+});
+
+
+
+// API endpoint to get the newstitle based on newsid
+app.delete('/api/eNewspage/:newsid', (req, res) => {
+    const { newsid } = req.params;
+    console.log(`Received DELETE request for newsid: ${newsid}`);  // Add this line
+    const query = 'DELETE FROM eNewsPage WHERE newsid = ?';
+    queryDB(query, [newsid], (err, results) => {
+        if (err) {
+            return res.status(500).send('Database error');
+        }
+        res.status(200).json({ message: 'Successfully deleted', newsid });
+    });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Start the server
 app.listen(5000, () => {
     console.log('Server is running on port 5000');
 });
 
-app.timeout = 600000; 

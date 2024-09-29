@@ -13,4 +13,3 @@ const AddNewEpaper = () => {
 };
 
 export default AddNewEpaper;
-

@@ -151,17 +151,7 @@ export default function Toolbar({ isEditEnable, saveCanvasData }) {
                             </a>
                         </div>
                     </div>
-                    <div className="w-96 p-2 justify-items-stretch ">
-                        <div className="bg-gray-600 p-2 text-center rounded-md">
-                            <a
-                                href="/"
-                                title="Delete"
-                                style={{ textDecoration: "none", color: "inherit" }}
-                            >
-                                <span>Epaper 1</span>
-                            </a>
-                        </div>
-                    </div>
+
                     <div className="p-2">
                         <div className="bg-gray-500 p-2 rounded-md">
                             <a

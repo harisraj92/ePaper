@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrashAlt, faNewspaper } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from 'react-router-dom';
 
-const EpaperCard = ({ newstitle, updated_at, newsid, pageid, pages }) => {
+const EpaperCard = ({ newstitle, updated_at, newsid, pageid, pages, onDelete }) => {
     const navigate = useNavigate();
 
     const handleEdit = () => {
@@ -26,8 +26,32 @@ const EpaperCard = ({ newstitle, updated_at, newsid, pageid, pages }) => {
         return 'Unknown Date';
     };
 
+    const handleDelete = async () => {
+        console.log(`Attempting to delete newsid: ${newsid}`); // Log the newsid to verify
+
+        try {
+            const response = await fetch(`http://localhost:5000/api/eNewspage/${newsid}`, {
+                method: 'DELETE',
+            });
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Delete successful:', result);  // Log success
+                onDelete(newsid);
+            } else {
+                const errorData = await response.json();
+                console.log('Delete failed:', errorData);  // Log the error response
+                alert(errorData.message || 'Failed to delete the eNewspage.');
+            }
+        } catch (error) {
+            console.error('Error deleting eNewspage:', error);
+            alert('Error deleting eNewspage. Please try again.');
+        }
+
+    };
+
+
     return (
-        <div className='flex space-x-4 p-2'>
+        <div className='flex flex-row flex-wrap space-x-4 p-2'>
             <div className="bg-yellow-400 p-4 rounded-lg shadow-md flex items-center space-x-2">
                 <div>
                     <h2 className="text-2xl font-bold text-white">{newstitle || 'Untitled Page'}</h2>
@@ -40,7 +64,8 @@ const EpaperCard = ({ newstitle, updated_at, newsid, pageid, pages }) => {
                             <FontAwesomeIcon icon={faEdit} className="text-lg" />
                             <span>Edit</span>
                         </button>
-                        <button className="bg-red-500 text-white rounded-lg px-3 py-1 flex items-center space-x-2 hover:bg-red-700">
+                        <button onClick={handleDelete} className="bg-red-500 text-white rounded-lg px-3 py-1 
+                        flex items-center space-x-2 hover:bg-red-700">
                             <FontAwesomeIcon icon={faTrashAlt} className="text-lg" />
                             <span>Delete</span>
                         </button>

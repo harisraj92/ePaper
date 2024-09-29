@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EpaperList from '../EpaperCard/EpaperList';
-import AddNewEpaper from '../AddNewEpaper/AddNewEpaper';
-import NewEpaperModal from '../AddNewEpaper/NewEpaperModal';
 
 const Home = () => {
-    const [isModalOpen, setModalOpen] = useState(false);
+    const [newsid, setNewsid] = useState('');
+    const [pageid] = useState(1); // Default to 1 since it's the first page
+    const [createdAt] = useState(new Date().toISOString()); // Set current timestamp
     const navigate = useNavigate();  // Initialize the navigation hook
-
-    // Function to open the modal
-    const handleNewEpaperClick = () => {
-        setModalOpen(true);
-    };
 
     // Function to handle saving new ePaper
     const handleSaveNewEpaper = async (data) => {
@@ -20,8 +15,8 @@ const Home = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    newstitle: data.newstitle,
-                    pagecontent: null, // Initially null
+                    newstitle: data.newstitle || "Untitled ePage",  // Default title if not provided
+                    pagecontent: null, // Page content can be added later
                     created_at: new Date().toISOString(), // Current timestamp
                     updated_at: null // Initially null
                 })
@@ -34,33 +29,27 @@ const Home = () => {
             const result = await response.json();
             console.log('New ePaper saved with ID:', result.newsid);
 
-            // Navigate to the NewspaperEditor (CanvasContainer) with newsid and pageid
+            // Navigate to the NewspaperEditor (CanvasContainer) with the newly created newsid and pageid as 1
             navigate(`/newspapereditor?newsid=${result.newsid}&pageid=1`);
         } catch (error) {
             console.error('Error saving new ePaper:', error);
         }
     };
 
-    // Function to close the modal
-    const handleCloseModal = () => {
-        setModalOpen(false);
-    };
 
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-4xl font-bold">My Epapers</h1>
-                <button onClick={handleNewEpaperClick}>
-                    <AddNewEpaper />
-                </button>
+                <div>
+                    <button
+                        onClick={handleSaveNewEpaper}
+                        className="bg-blue-500 text-white px-4 py-2 rounded"
+                    >
+                        Create ePaper
+                    </button>
+                </div>
             </div>
-
-            {/* Render the modal for creating a new ePaper */}
-            <NewEpaperModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                onSave={handleSaveNewEpaper}
-            />
 
             <EpaperList />
         </div>
